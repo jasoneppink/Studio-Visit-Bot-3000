@@ -1,0 +1,313 @@
+<html>
+<head>
+<link href="video-js/video-js.css" rel="stylesheet">
+<link href="video-js-overlay/lib/videojs-overlay.css" rel="stylesheet">
+
+<script src="jquery-2.1.3.min.js"></script>
+<script src="video-js/video.js"></script>
+<script src="video-js-overlay/lib/videojs-overlay.js"></script>
+<script type="text/javascript">
+
+var player;
+
+var videoToPlay;
+var nextVideoIndex;
+var afterVideo;
+var surveyQuestions;
+
+var currentVideo;
+var nextVideo;
+
+var numQuestions = 0;
+
+var videoPath = [
+			//filename, index of next video, loop/autoadvance/timeout # of Qs
+/*  0 */	["working",	1, "loop", "fullscreen"],
+/*  1 */	["hello", 2, "auto"],
+/*  2 */	["age", 3, "timeout", 4],
+/*  3 */	["sex", 4, "timeout", 3],
+/*  4 */	["income", 5, "timeout", 5],
+/*  5 */	["whatfirst", [6, 7, 8, 9, 10], "timeout"],
+/*  6 */	["astoriascumriverbridge", 13, "questions", "exit"],
+/*  7 */	["exquisitecontraption", 13, "questions", "exit"],
+/*  8 */	["kickbackstarter", 13, "questions", "exit"],
+/*  9 */	["pixelator", 13, "questions", "exit"],
+/* 10 */	["spoileralert", 13, "questions", "exit"],
+/* 11 */	["abandoned", 0, "auto"],
+/* 12 */	["quitearly", 13, "auto"],
+/* 13 */	["whatnext", [6, 7, 8, 9, 10], "timeout"]
+];
+
+var questions = [
+			//filename, # of Qs
+/* 0 */		["question1", 4],
+/* 1 */		["question2", 3],
+/* 2 */		["question3", 5]
+];
+
+function videoHTML(videoIdentifier, loop) {
+	return '<video id="video-js" class="video-js" ' +
+		'preload="auto" autoplay="true" ' + loop +
+		' width="1024" height="600">' +
+		'\t<source src="' + videoIdentifier + '.mp4" type="video/mp4" /> \n' +
+		'\t\t<p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-	video-support/" >supports HTML5 video</a></p>\n' +
+		'</video>';
+}
+
+//INITIATE
+$(document).ready(function () {
+	$('div.video-background').html(videoHTML("working", "loop"));
+	player = videojs("video-js");
+
+	videojs(document.querySelector('video')).overlay({
+		overlays: [{
+			content: '<div class="full" onclick="changeVideo(1)">&nbsp;</div>',
+			start: "play",
+			end: "pause",
+			align: 'full',
+		}]
+	});
+});
+
+//randomly ask 3 questions after showing a project
+function askQuestions(respondingToVideo, nextVideo) {
+	numQuestions++;
+	//
+	//play "reactions" video
+	//
+	var randomnumber = Math.floor(Math.random()*3);
+	//console.log("question: " + randomnumber);
+
+	var html = videoHTML(questions[randomnumber][0]);
+	$('div.video-background').html(html);
+	player.dispose();
+	player = videojs('video-js');
+
+	if(numQuestions<3) {
+		addOverlays(questions[randomnumber][1], respondingToVideo, nextVideo, true, randomnumber);
+	} else {
+		addOverlays(questions[randomnumber][1], respondingToVideo, nextVideo, false, randomnumber);
+	}
+}
+
+//record survey answer and move to next video
+function recordAnswer(question, answer, next, more, qNum) {
+	if(typeof qNum != 'undefined'){
+		console.log(question + " Q" + qNum + " : " + answer);
+	} else {
+		console.log(question + ": " + answer);
+	}
+	if(more) {
+		askQuestions(question, next);
+	} else {
+		numQuestions = 0;
+		changeVideo(next);
+	}
+}
+
+
+//main function - replace current video with next video, including adding overlays
+function changeVideo(thisVideo) {
+	videoToPlay = videoPath[thisVideo][0];
+	nextVideoIndex = videoPath[thisVideo][1];
+	afterVideo = videoPath[thisVideo][2];
+
+	surveyQuestions = undefined;
+	if(videoPath[thisVideo][3]){
+		surveyQuestions = videoPath[thisVideo][3];
+	}
+
+	//dispose video and set up new player
+	if(afterVideo=="loop"){
+		var html = videoHTML(videoToPlay, "loop");
+	} else {
+		var html = videoHTML(videoToPlay);
+	}
+	$('div.video-background').html(html);
+	player.dispose();
+	player = videojs('video-js');
+
+	//Determine what happens when video reaches its end
+	if(afterVideo=="auto"){
+		//advance to the next video
+		videojs("video-js").ready(function(){
+          this.on("ended", function(){ 
+            changeVideo(nextVideoIndex);
+          });
+        });
+	} else if(afterVideo=="timeout"){
+		//time out and start at the beginning
+		videojs("video-js").ready(function(){
+          this.on("ended", function(){ 
+            changeVideo(11);
+          });
+        });
+	} else if(afterVideo=="questions"){
+		videojs("video-js").ready(function(){
+          this.on("ended", function(){ 
+            askQuestions(videoToPlay, nextVideoIndex);
+          });
+        });
+	}
+
+	addOverlays(surveyQuestions, videoToPlay, nextVideoIndex);
+
+	//If we have options for what happens next
+	if(typeof nextVideoIndex === 'object') {
+		//with 5 options
+		if(Object.keys(nextVideoIndex).length == 5) {
+			videojs(document.querySelector('video')).overlay({
+				overlays: [{
+					content: '<div class="full" onclick="changeVideo(nextVideoIndex[0])">&nbsp;</div>',
+					start: 0,
+					end: 30,
+					align: 'top-left',
+				}, {
+					content: '<div class="full" onclick="changeVideo(nextVideoIndex[1])">&nbsp;</div>',
+					start: 0,
+					end: 30,
+					align: 'left',
+				}, {
+					content: '<div class="full" onclick="changeVideo(nextVideoIndex[2])">&nbsp;</div>',
+					start: 0,
+					end: 30,
+					align: 'bottom-left',
+				}, {
+					content: '<div class="full" onclick="changeVideo(nextVideoIndex[3])">&nbsp;</div>',
+					start: 0,
+					end: 30,
+					align: 'top-right',
+				}, {
+					content: '<div class="full" onclick="changeVideo(nextVideoIndex[4])">&nbsp;</div>',
+					start: 0,
+					end: 30,
+					align: 'bottom-right',
+				}]
+			});
+		}
+	}
+}
+
+function addOverlays(type, current, next, more, qNum) {
+	//console.log("addOverlays type= " + type + " currentVideo = " + currentVideo + " nextVideo = " + nextVideo);
+
+	currentVideo = current;
+	nextVideo = next;
+	moreQuestions = more;
+	questionNumber = qNum;
+
+	if(type=="fullscreen"){
+		videojs(document.querySelector('video')).overlay({
+			overlays: [{
+				content: '<div class="full" onclick="changeVideo(nextVideo)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'full',
+			}]
+		});
+	}
+
+	if(type=="exit"){
+		videojs(document.querySelector('video')).overlay({
+			overlays: [{
+				content: '<div class="full" onclick="changeVideo(12)">Show me something else</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'exit',
+			}]
+		});
+	}
+
+	if(type==3){
+		videojs(document.querySelector('video')).overlay({
+			overlays: [{
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 1, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey1of3',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 2, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey2of3',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 3, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey3of3',
+			}]
+		});
+	}
+
+	if(type==4){
+		videojs(document.querySelector('video')).overlay({
+			overlays: [{
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 1, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey1of4',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 2, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey2of4',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 3, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey3of4',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 4, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey4of4',
+			}]
+		});
+	}
+
+	if(type==5){
+		videojs(document.querySelector('video')).overlay({
+			overlays: [{
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 1, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey1of5',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 2, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey2of5',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 3, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey3of5',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 4, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey4of5',
+			}, {
+				content: '<div class="full" onclick="recordAnswer(currentVideo, 5, nextVideo, moreQuestions, questionNumber)">&nbsp;</div>',
+				start: 'play',
+				end: 'pause',
+				align: 'survey5of5',
+			}]
+		});
+	}
+
+
+}
+
+
+</script>
+</head>
+<body>
+
+	<div id="video-player">
+		<div class="video-background"></div>
+	</div>
+
+
+</body>
+</html>
